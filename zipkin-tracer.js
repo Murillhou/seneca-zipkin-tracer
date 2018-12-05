@@ -33,7 +33,7 @@ function client_inward (ctx, msg, meta) {
   var service = ctx.seneca.options().tag
   var pin = get_pattern(msg, meta)
 
-  var trace_data = Tracer.get_child(ctx.seneca.fixedargs.__tracer__)
+  var trace_data = Tracer.get_child(ctx.__tracer__)
 
   trace_data = Tracer.send_client_send(trace_data, {
     service: service,
@@ -87,7 +87,7 @@ function zipkin_inward (ctx, data) {
   var meta = data.meta
 
   if(msg.__tracer__){
-	traceData = ctx.seneca.fixedargs.__tracer__ = msg.__tracer__;
+	traceData = msg.__tracer__;
   }
   
   ctx.server = msg.transport$ && get_plugin(msg, meta) !== 'client$'
@@ -95,9 +95,11 @@ function zipkin_inward (ctx, data) {
     return server_inward(ctx, msg, meta)
   }
 
-  if(traceData && !ctx.seneca.fixedargs.__tracer__){
-	ctx.seneca.fixedargs.__tracer__ = traceData;
+  
+  if(traceData && msg.__tracer__ && !msg.__tracer__.parentSpanId){
+	ctx.__tracer__ = traceData;
   }
+  
 
   client_inward(ctx, msg, meta)
 }
