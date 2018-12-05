@@ -10,6 +10,7 @@ var Tracer = new Zipkin({
   host: '127.0.0.1',
   port: 9411
 })
+var traceData;
 
 function internal_action (msg) {
   return msg.role === 'seneca' ||
@@ -84,10 +85,18 @@ function zipkin_inward (ctx, data) {
 
   var msg = data.msg
   var meta = data.meta
+
+  if(msg.__tracer__){
+	traceData = ctx.seneca.fixedargs.__tracer__ = msg.__tracer__;
+  }
   
   ctx.server = msg.transport$ && get_plugin(msg, meta) !== 'client$'
   if (ctx.server) {
     return server_inward(ctx, msg, meta)
+  }
+
+  if(traceData && !ctx.seneca.fixedargs.__tracer__){
+	ctx.seneca.fixedargs.__tracer__ = traceData;
   }
 
   client_inward(ctx, msg, meta)
