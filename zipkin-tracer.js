@@ -96,7 +96,7 @@ function zipkin_inward (ctx, data) {
   }
 
   
-  if(traceData && msg.__tracer__ && !msg.__tracer__.parentSpanId){
+  if(traceData && (!ctx.__tracer__ || (msg.__tracer__ && !msg.__tracer__.parentSpanId)){
 	ctx.__tracer__ = traceData;
   }
   
