@@ -11,6 +11,7 @@ var Tracer = new Zipkin({
   port: 9411
 })
 var serverInwardData;
+var traceData;
 
 function internal_action (msg) {
   return msg.role === 'seneca' ||
@@ -32,16 +33,17 @@ function get_plugin(msg, meta) {
 function client_inward (ctx, msg, meta) {
   var service = ctx.seneca.options().tag
   var pin = get_pattern(msg, meta)
-
-  var trace_data = Tracer.get_child(serverInwardData || ctx.seneca.fixedargs.__tracer__)
+ 
+  var trace_data = Tracer.get_child(serverInwardData || traceData || ctx.seneca.fixedargs.__tracer__)
   serverInwardData = undefined;
+
 
   trace_data = Tracer.send_client_send(trace_data, {
     service: service,
     name: pin
   })
 
-  ctx.__tracer__ = msg.__tracer__ = ctx.seneca.fixedargs.__tracer__ = trace_data
+   ctx.__tracer__ = msg.__tracer__ = ctx.seneca.fixedargs.__tracer__ = trace_data
 }
 
 
@@ -54,7 +56,7 @@ function server_inward (ctx, msg, meta) {
     name: pin
   })
 
-  serverInwardData = ctx.__tracer__ = msg.__tracer__ = ctx.seneca.fixedargs.__tracer__ = trace_data
+  serverInwardData = traceData = ctx.__tracer__ = msg.__tracer__ = ctx.seneca.fixedargs.__tracer__ = trace_data
 }
 
 function client_outward (ctx, msg, meta) {
@@ -115,15 +117,20 @@ function zipkin_outward (ctx, data) {
 }
 
 function injectTracerData(data){
+	data.sampled = Tracer.opts.sampling === 1;
 	serverInwardData = data;
+
 }
 
 function tracer_plugin (options) {
+  serverInwardData = null;
+  traceData = null;
   if(options.exposeInjectTracerData){
 	options.exposeInjectTracerData(injectTracerData);
   }
   Tracer.options(options)
   var seneca = this
+  seneca.fixedargs.__tracer__ = null;
 
   seneca.inward(zipkin_inward)
   seneca.outward(zipkin_outward)
